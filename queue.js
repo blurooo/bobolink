@@ -4,10 +4,10 @@
  * QQ: 946800151
  * github: github.com/blurooo
  *
- * 请在座的各位留点面子，如果有使用，给本人个露脸的机会不要删除这块，不胜感激。
+ * 如果有使用，给本人个露脸的机会留下这块，不胜感激。
  *
  */
-function QueueTask(options) {
+function Queue(options) {
 
   let self = this;
 
@@ -34,10 +34,18 @@ function QueueTask(options) {
   // 重试标识
   const retryFlag = 'queue_retry';
 
+  // 未知错误, 有些走进catch的错误可能是空的, 赋予它一个定值, 而非维持空,
+  // 有助于在put.then中, 可以总是认为err === undefined即为任务成功。
+  // err可能为null、false、0等false值, 天知道一个Promise会reject出什么东西, 所以不要认为err为false值即成功,
+  // 而应该是严格的err === undefined才成功。
+  const unknownError = 'queue_unknown_error';
+
   // 默认的队列并发数
   const defaultConcurrency = 5;
+
   // 默认超时时间
   const defaultTimeout = 15000;
+
   // 默认重试次数
   const defaultRetry = 0;
 
@@ -85,8 +93,8 @@ function QueueTask(options) {
   let autoIncrement = 0;
 
   // 实际添加任务到队列
-  function putTask(task) {
-    if (self.options.newPrior) {
+  function putTask(task, prior) {
+    if (self.options.newPrior || prior) {
       self.queueTasks.unshift(task);
     } else {
       self.queueTasks.push(task);
@@ -95,7 +103,7 @@ function QueueTask(options) {
 
   // 添加任务, 可以添加单个, 也可以批量添加(数组形式)
   // 要求任务为一个function, 执行返回一个Promise对象(直接传promise对象会直接被执行, 达不到任务队列执行的效果)
-  function put(tasks) {
+  function put(tasks, prior) {
     return new Promise((resolve) => {
       // 非有效任务, 直接返回
       if (!tasks || (!Array.isArray(tasks) && !(tasks instanceof Function))) {
@@ -116,7 +124,7 @@ function QueueTask(options) {
           func: tasks,
           retry: 0,
           putTime: +new Date
-        });
+        }, prior);
       } else {
         // 本次提交了一组任务, 生成一个唯一标签标识这一组任务, 用于关联该组任务是否全部执行完成
         let tag = genId();
@@ -128,8 +136,13 @@ function QueueTask(options) {
           results: new Array(validTasks.length),
           remainingCount: validTasks.length
         };
+
         // 提交任务
-        validTasks.forEach((task, index) => {
+        // 如果指定了要优先处理任务组, 应维持任务组的顺序放入队头
+        for (let i = 0, len = validTasks.length; i < len; i++) {
+          // 如果这组任务优先处理, 一个一个放入队列的时候, 应当倒序
+          let index = prior ? (len - i - 1) : i;
+          let task = validTasks[index];
           // tag      标注一组任务
           // index    每个任务留存index, 以有序返回执行结果
           putTask({
@@ -139,8 +152,8 @@ function QueueTask(options) {
             index,
             retry: 0,
             putTime: +new Date
-          });
-        });
+          }, prior);
+        }
       }
       // 最大并发量 - 正在执行中的任务数 = 可以新增执行的任务数
       let newTaskCount = self.options.concurrency - self.runningTasksCount;
@@ -178,14 +191,8 @@ function QueueTask(options) {
     p.then(res => {
       // 执行成功任务数减1
       self.runningTasksCount--;
-      return {
-        err: null,
-        res,
-        putUntilRunTime: startTime - task.putTime,
-        runTime: +new Date - startTime,
-        retry: task.retry
-      };
-    }).catch(err => {
+      return getRes(undefined, res, startTime - task.putTime, +new Date - startTime, task.retry);
+    }).catch((err = unknownError) => {
       if (self.options.catch) {
         // 将运行错误的handler函数放置到执行序尾部，希望仅用于一些记录，不要影响队列的正常运作
         setTimeout(() => {
@@ -209,13 +216,7 @@ function QueueTask(options) {
         return retryFlag;
       } else {
         // 不重试就按套路返回
-        return {
-          err: err,
-          res: null,
-          putUntilRunTime: startTime - task.putTime,
-          runTime: +new Date - startTime,
-          retry: task.retry
-        };
+        return getRes(err, null, startTime - task.putTime, +new Date - startTime, task.retry);
       }
     }).then(res => {
       // 每结束一个, 都要重新补充一个
@@ -243,8 +244,20 @@ function QueueTask(options) {
     });
   }
 
+  // err === undefined 任务成功, 不管res是否有值
+  function getRes(err, res, putUntilRunTime, runTime, retry) {
+    return {
+      err,
+      res,
+      putUntilRunTime,
+      runTime,
+      retry
+    }
+  }
+
   // 获取自增数, digits指定位数, 每个时间单位内允许有Math.pow(10, digits) - 1个并发不会有重复
   function getAndIncrement(digits = 7) {
+    // 总是返回指定位数, 位数不足时, 前面补零
     let r = (new Array(digits).fill(0).join('') + autoIncrement).slice(-1 * digits);
     if (autoIncrement == (Math.pow(10, digits) - 1)) {
       autoIncrement = 0;
@@ -276,4 +289,4 @@ function QueueTask(options) {
 
 }
 
-module.exports = QueueTask;
+module.exports = Queue;
