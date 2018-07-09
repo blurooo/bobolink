@@ -5,7 +5,10 @@ let q = new Queue({
   timeout: 2000,
   retry: 3,
   concurrency: 's',
-  retryPrior: 'asda'
+  retryPrior: 'asda',
+  catch: (err) => {
+    console.log('抓取到错误', err);
+  }
 });
 
 // 建立两个任务组, 评估运行态
@@ -44,6 +47,10 @@ q.put([delayReturn(0, 1), delayReturn(0, 2, true), delayReturn(0, 3)]).then(task
 // 空任务组不会放入队列, 而是直接返回
 q.put([]).then(task => {
   console.log('空任务组直接返回', task);
+});
+
+q.put(delayReturn(0, '这是被catch到的错误', true)).then(tr => {
+  console.log('测试任务失败被catch完成');
 });
 
 // 建立一条串行任务队列
