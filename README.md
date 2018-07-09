@@ -1,6 +1,8 @@
 #### Introduction
 Lightweight JS task queues，Support concurrency control, task timeout, retry failed, error catch, load analysis, etc
 
+[Click here to view the Chinese document](https://github.com/blurooo/queue/blob/master/README-CN.md)
+
 #### Realization
 How the queue can be digested in a timely manner？Grab two important moments：put task and each task is completed。Assuming that the concurrency of the queue is set to n, the number of tasks in execution is m：
 
