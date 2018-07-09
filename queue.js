@@ -7,6 +7,7 @@
  *  2. 一个任务执行完时, 会尝试从队列中load一个任务进行补充。
  *
  */
+
 function Queue(options) {
 
   let self = this;
@@ -16,6 +17,7 @@ function Queue(options) {
 
   // 执行中任务个数
   this.runningTasksCount = 0;
+
 
   // 任务标签, 用于判断一组任务是否执行结束以及留存每个任务的响应
   // 通常状态是
@@ -49,6 +51,12 @@ function Queue(options) {
   // 默认重试次数
   const defaultRetry = 0;
 
+  // 频率控制器, 实际的实现就是一个间隔执行器
+  let frequencyController;
+
+  // 队列是否初始化完成
+  let init = false;
+
   // 队列配置参数
   let queueOptions = {
     // 任务并发数, 至少为1
@@ -57,6 +65,17 @@ function Queue(options) {
     timeout: defaultTimeout,
     // 任务出错重试的次数, 0为不重试
     retry: defaultRetry,
+    // 任务调度模式, auto为自调度,
+    scheduling: {
+      // 启用的模式, 默认为immediately, 任务将会立即执行, 可选frequency, 任务可按设定频率调度
+      enable: 'immediately',
+      // 频率限定模式一些配置参数
+      frequency: {
+        // 每秒执行的任务个数
+        countPerSecond: 100
+      },
+      immediately: true
+    },
     // 是否优先处理重试任务, 决定了是将其重新置入队列前还是队列后
     retryPrior: false,
     // 是否新任务优先处理
@@ -64,6 +83,30 @@ function Queue(options) {
     // 任务出错的回调函数
     catch: null
   };
+
+  // 描述一个任务调度器的行为
+  // init: 初始化该调度模式
+  // putThenRun: 是否在put的时候加载任务
+  // replenish: 一个任务执行完时是否从等待的任务中加载一个进行补充
+  let schedulingModes = {
+    frequency: {
+      putThenRun: false,
+      replenish: false,
+      init: function () {
+        // 初始化一个定时任务调度器
+        frequencyController = setInterval(() => {
+          // 执行中队列允许新增的任务数如果大于0则调度一个任务
+          if (queueOptions.concurrency - self.runningTasksCount > 0) {
+            runTask(1);
+          }
+        }, 1000 / queueOptions.scheduling.frequency.countPerSecond);
+      }
+    },
+    immediately: {
+      putThenRun: true,
+      replenish: true
+    }
+  }
 
 
   // 用于修正不正确的值
@@ -78,46 +121,46 @@ function Queue(options) {
   this.setOptions = function(newOptions) {
     // 修正不正确的参数设置
     if (newOptions) {
-      newOptions.concurrency !== undefined && (newOptions.concurrency = reviseValue(
-        newOptions.concurrency,
-        'number',
-        newOptions.concurrency > 0,
-        defaultConcurrency
-      ));
-      newOptions.timeout !== undefined && (newOptions.timeout = reviseValue(
-          newOptions.timeout,
-          'number',
-          newOptions.timeout >= 0,
-          defaultTimeout)
-      );
-      newOptions.retry !== undefined && (newOptions.retry = reviseValue(
-          newOptions.retry,
-          'number',
-          newOptions.retry >= 0,
-          defaultRetry)
-      );
-      newOptions.retryPrior !== undefined && (newOptions.retryPrior = reviseValue(
-          newOptions.retryPrior,
-          'boolean',
-          newOptions.retryPrior === true,
-          false)
-      );
-      newOptions.newPrior !== undefined && (newOptions.newPrior = reviseValue(
-          newOptions.newPrior,
-          'boolean',
-          newOptions.newPrior === true,
-          false)
-      );
-      newOptions.catch !== undefined && (newOptions.catch = reviseValue(
-          newOptions.catch,
-          'function',
-          true,
-          null)
-      );
+      // 允许配置的选项
+      let allowOptions = {};
+      // 初始化阶段允许配置任务调度模式
+      if (init !== true) {
+        if (newOptions.scheduling && newOptions.scheduling.enable) {
+          let schedulingMode = newOptions.scheduling.enable;
+          // 调度模式如果被支持
+          if (queueOptions.scheduling[schedulingMode] !== undefined) {
+            queueOptions.scheduling.enable = newOptions.scheduling.enable;
+            let newModeConfig = newOptions.scheduling[schedulingMode];
+            let oldModeConfig = queueOptions.scheduling[schedulingMode];
+            if (newModeConfig) {
+              for (let c in newModeConfig) {
+                // 仅调度参数被支持, 并且类型相同时才允许设置
+                if (oldModeConfig.hasOwnProperty(c) && typeof oldModeConfig[c] === typeof newModeConfig[c]) {
+                  oldModeConfig[c] = newModeConfig[c];
+                }
+              }
+            }
+          }
+        }
+        init = true;
+        initSchedulingMode();
+      }
+      newOptions.concurrency !== undefined && (allowOptions.concurrency = reviseValue(newOptions.concurrency, 'number', newOptions.concurrency > 0, defaultConcurrency));
+      newOptions.timeout !== undefined && (allowOptions.timeout = reviseValue(newOptions.timeout, 'number', newOptions.timeout >= 0, defaultTimeout));
+      newOptions.retry !== undefined && (allowOptions.retry = reviseValue(newOptions.retry, 'number', newOptions.retry >= 0, defaultRetry));
+      newOptions.retryPrior !== undefined && (allowOptions.retryPrior = reviseValue(newOptions.retryPrior, 'boolean', newOptions.retryPrior === true, false));
+      newOptions.newPrior !== undefined && (allowOptions.newPrior = reviseValue(newOptions.newPrior, 'boolean', newOptions.newPrior === true, false));
+      newOptions.catch !== undefined && (allowOptions.catch = reviseValue(newOptions.catch, 'function', true, null));
 
       // 可配置选项
-      Object.assign(queueOptions, newOptions);
+      Object.assign(queueOptions, allowOptions);
     }
+  }
+
+  // 初始化调度任务
+  function initSchedulingMode() {
+    let mode = schedulingModes[queueOptions.scheduling.enable];
+    mode.init && mode.init();
   }
 
   // 暴露排队中任务数, 只读
@@ -172,7 +215,7 @@ function Queue(options) {
           resolve,
           func: tasks,
           retry: 0,
-          putTime: +new Date
+          putTime: new Date().getTime()
         }, prior);
       } else {
         // 本次提交了一组任务, 生成一个唯一标签标识这一组任务, 用于关联该组任务是否全部执行完成
@@ -200,17 +243,20 @@ function Queue(options) {
             tag,
             index,
             retry: 0,
-            putTime: +new Date
+            putTime: new Date().getTime()
           }, prior);
         }
       }
-      // 最大并发量 - 正在执行中的任务数 = 可以新增执行的任务数
-      let newTaskCount = queueOptions.concurrency - self.runningTasksCount;
-      if (newTaskCount < 1) {
-        return;
+      // 是否指明了put之后要立即执行
+      if (schedulingModes[queueOptions.scheduling.enable].putThenRun) {
+        // 最大并发量 - 正在执行中的任务数 = 可以新增执行的任务数
+        let newTaskCount = queueOptions.concurrency - self.runningTasksCount;
+        if (newTaskCount < 1) {
+          return;
+        }
+        // 每次put都是一个触发执行逻辑的时机
+        runTask(newTaskCount);
       }
-      // 每次put都是一个触发执行逻辑的时机
-      runTask(newTaskCount);
     });
   }
 
@@ -236,11 +282,11 @@ function Queue(options) {
   }
 
   function taskHandler(task, p) {
-    let startTime = +new Date;
+    let startTime = new Date().getTime();
     p.then(res => {
       // 执行成功任务数减1
       self.runningTasksCount--;
-      return getRes(undefined, res, startTime - task.putTime, +new Date - startTime, task.retry);
+      return getRes(undefined, res, startTime - task.putTime, new Date().getTime() - startTime, task.retry);
     }).catch((err = unknownError) => {
       if (queueOptions.catch) {
         // 将运行错误的handler函数放置到执行序尾部，希望仅用于一些记录，不要影响队列的正常运作
@@ -265,11 +311,13 @@ function Queue(options) {
         return retryFlag;
       } else {
         // 不重试就按套路返回
-        return getRes(err, null, startTime - task.putTime, +new Date - startTime, task.retry);
+        return getRes(err, null, startTime - task.putTime, new Date().getTime() - startTime, task.retry);
       }
     }).then(res => {
-      // 每结束一个, 都要重新补充一个
-      runTask(1);
+      // 每结束一个, 是否获取补充
+      if (schedulingModes[queueOptions.scheduling.enable].replenish) {
+        runTask(1);
+      }
       // 非加入重试的话, 走处理流程
       if (res !== retryFlag) {
         // 如果是批量添加的一组任务
@@ -319,7 +367,7 @@ function Queue(options) {
   // 获取一组任务的唯一id
   // 每进程每秒10亿个并发id不重复
   function genId() {
-    return +new Date + getAndIncrement();
+    return new Date().getTime() + getAndIncrement();
   }
 
   // 超时拒绝
