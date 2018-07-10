@@ -1,4 +1,4 @@
-const Queue = require('./queue');
+const Queue = require('./../lib/queue');
 
 function testImmediatelyMode() {
   // 错误的参数会被修正为默认值
@@ -162,3 +162,5 @@ function testFrequencyMode() {
 }
 
 testFrequencyMode();
+
+testImmediatelyMode();

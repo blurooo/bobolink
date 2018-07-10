@@ -1,0 +1,33 @@
+{
+  "name": "partaker",
+  "version": "1.0.0",
+  "description": "an intelligently scheduled task pool",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blurooo/partaker.git"
+  },
+  "keywords": [
+    "queue",
+    "task",
+    "schedule",
+    "concurrency",
+    "job",
+    "async",
+    "pool",
+    "partaker"
+  ],
+  "author": {
+    "name": "blurooo",
+    "email": "me@chenmuxin.cn",
+    "url": "https://github.com/blurooo/"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/blurooo/partaker/issues"
+  },
+  "homepage": "https://github.com/blurooo/partaker#readme"
+}
