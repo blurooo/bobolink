@@ -139,20 +139,22 @@ function testImmediatelyMode() {
 }
 
 function testFrequencyMode() {
-  // 使用频率限定模式, 每秒运行并发2条
+  // 使用频率限定模式, 每秒运行并发1万条
   let q = new Queue({
     scheduling: {
       enable: 'frequency',
       frequency: {
-        countPerSecond: 1
+        countPerSecond: 10000
       }
     }
   });
 
-  for (let i = 0; i < 10; i++) {
+  // 下面的执行时间差应该是0.1s
+  let max = 1000;
+  for (let i = 0; i < max; i++) {
     q.put(() => {
       return new Promise(resolve => {
-        console.log('当前任务索引', i, '时间', new Date().getTime());
+        (i === 0 || i === max - 1) && console.log('当前任务索引', i, '时间', new Date().getTime());
         resolve();
       });
     });

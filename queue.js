@@ -93,13 +93,21 @@ function Queue(options) {
       putThenRun: false,
       replenish: false,
       init: function () {
+        // 修正countPerSecond的不合法值
+        let countPerSecond = ~~queueOptions.scheduling.frequency.countPerSecond;
+        countPerSecond < 1 && (countPerSecond = 100);
+        let maxFactor = getMaxFactor(1000, countPerSecond);
+        // 求得时间间隔
+        let interval = 1000 / maxFactor;
+        // 求得每个时间间隔运行的任务数
+        let taskNumber = countPerSecond / maxFactor;
         // 初始化一个定时任务调度器
         frequencyController = setInterval(() => {
           // 执行中队列允许新增的任务数如果大于0则调度一个任务
           if (queueOptions.concurrency - self.runningTasksCount > 0) {
-            runTask(1);
+            runTask(taskNumber);
           }
-        }, 1000 / queueOptions.scheduling.frequency.countPerSecond);
+        }, interval);
       }
     },
     immediately: {
@@ -379,6 +387,13 @@ function Queue(options) {
     });
   }
 
+}
+
+function getMaxFactor(a, b) {
+  if (b === 0) {
+    return a;
+  }
+  return getMaxFactor(b, a % b);
 }
 
 
