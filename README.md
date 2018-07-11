@@ -1,28 +1,37 @@
+```
+___.         ___.          .__  .__        __
+\_ |__   ____\_ |__   ____ |  | |__| ____ |  | __
+ | __ \ /  _ \| __ \ /  _ \|  | |  |/    \|  |/ /
+ | \_\ (  <_> ) \_\ (  <_> )  |_|  |   |  \    <
+ |___  /\____/|___  /\____/|____/__|___|  /__|_ \
+     \/           \/                    \/     \/
+```
+
 #### Introduction
-Lightweight JS task queues，Support concurrency control, task timeout, retry failed, error catch, load analysis, etc
+Lightweight JS task scheduling framework, which supports concurrency control, timeout, retry, error catch, load analysis, etc. In addition, it also supports multiple scheduling modes, including immediate scheduling and frequency scheduling.
 
-[Click here to view the Chinese document](https://github.com/blurooo/queue/blob/master/README-CN.md)
+[Click here to view the Chinese document](https://github.com/blurooo/bobolink/blob/master/README-CN.md)
 
-#### Realization
-How the queue can be digested in a timely manner？Grab two important moments：put task and each task is completed。Assuming that the concurrency of the queue is set to n, the number of tasks in execution is m：
+#### Install
 
-1. When put tasks, load (n-m) tasks at once and put them into execution queue.
-2. When each task is completed, load a supplement.
-
-in addition, The queue is only dependent on Promise.
+```
+npm i bobolink
+```
 
 #### Usage
 
-1. Create a default queue
+1. Create a default Bobolink
 
-    A queue object is created as required (there is no association between queue objects, so different queue objects can be used in a variety of scenarios, or even a number of queue combinations can be used to deal with some complex scenes).
+    A bobolink is created as required (there is no association between the different bobolink, so different bobolink can be used in a variety of scenarios, or even a number of bobolink combinations can be used to deal with some complex scenes).
 
     ```javascript
-    let q = new Queue();
+    const Bobolink = require('bobolink');
+    let bl = new Bobolink();
     ```
-2. put a task
+    Each bobolink has a big task queue, so feel free to throw the task to it.
+2. put a single task
 
-    Since the code within the Promise function has been executed at the time of creation (the code in the and catch is executed by callback), it is not feasible to simply put a Promise into the queue.
+    Since the code within the Promise function has been executed at the time of creation (the code in the and catch is executed by callback), it is not feasible to simply put a Promise into the bobolink.
 
     ```javascript
     // The following print order is 1 2 3
@@ -47,7 +56,7 @@ in addition, The queue is only dependent on Promise.
     }
     console.log(2);
     ```
-    At this point, P must wait for the call to execute the internal Promise code, and P returns the Promise, so the value can continue to be passed. Each task placed in the queue should be encapsulated in this way.
+    At this point, p must wait for the call to execute the internal Promise code, and p returns the Promise, so the value can continue to be passed. Each task placed in the bobolink should be encapsulated in this way.
     ```javascript
     function p() {
         return new Promise(resolve => {
@@ -58,17 +67,17 @@ in addition, The queue is only dependent on Promise.
             return 3;
         })
     }
-    // because the queue is idle, the task can be scheduled immediately.
-    q.put(p).then(task => {
+    // because the bobolink is idle, the task can be scheduled immediately.
+    bl.put(p).then(task => {
         // print 3
         console.log(task.res)
     });
     ```
-    Of course, if the number of tasks in the queue execution has reached the maximum concurrency when the queue is placed, it needs to wait for the task to make space when the task is completed, and the task before the current task has been scheduled to be completed.
+    Of course, if the number of tasks in the bobolink's queue execution has reached the maximum concurrency when the queue is placed, it needs to wait for the task to make space when the task is completed and the task before the current task has been scheduled to be completed.
 
-3. Put in a set of tasks
+3. Put multiple tasks
 
-    The queue allows multiple tasks to be put at the same time, and put.then will be called when the group task is executed.
+    The bobolink allows multiple tasks to be put at the same time, and put.then will be called when the group task is executed.
     ```javascript
     function getP(flag) {
         return function p() {
@@ -77,7 +86,7 @@ in addition, The queue is only dependent on Promise.
             });
         }
     }
-    q.put([getP(1), getP(2), getP(3)]).then(tasks => {
+    bl.put([getP(1), getP(2), getP(3)]).then(tasks => {
         // Print the return value of each task
         for (let i = 0; i < tasks.length; i++) {
             console.log(tasks[i].res);
@@ -89,7 +98,7 @@ in addition, The queue is only dependent on Promise.
 
      you can set any of the following parameters：
      ```javascript
-     let q = new Queue({
+     let bobo = new Bobolink({
         // the minimum setting is 1
         concurrency: 5,
         // task timeout, ms，Set it to 0 and it doesn't timeout
@@ -100,6 +109,16 @@ in addition, The queue is only dependent on Promise.
         retryPrior: false,
         // whether to prioritize new tasks
         newPrior: false,
+        // specify the scheduling mode, the setting is valid only when bobolink is initialized.
+        scheduling: {
+          // the default is 'immediately', and tasks will always be scheduled at idle.
+          // you can also set it to 'frequency', and specify the value of countPerSecond, bobolink will schedule tasks strictly according to the frequency you set.
+          enable: 'frequency',
+          frequency: {
+            // how many tasks do you want to schedule per second
+            countPerSecond: 10000
+          }
+        },
         // catch any errors
         catch: (err) => {
 
@@ -108,7 +127,7 @@ in addition, The queue is only dependent on Promise.
      ```
      parameters allow you to reset them at run time:
      ```javascript
-     q.setOptions({
+     bl.setOptions({
         concurrency: 5,
         timeout: 15000,
         retry: 0,
@@ -143,6 +162,6 @@ in addition, The queue is only dependent on Promise.
 
 7. More
 
-    + q.options：get the configuration of the current queue.
-    + q.queueTaskSize：get the number of tasks in the current queue.
-    + q.runningTaskCount：get the number of tasks currently being processed.
+    + bl.options：get the configuration of the current queue.
+    + bl.queueTaskSize：get the number of tasks in the current queue.
+    + bl.runningTaskCount：get the number of tasks currently being processed.

@@ -1,31 +1,37 @@
+```
+___.         ___.          .__  .__        __
+\_ |__   ____\_ |__   ____ |  | |__| ____ |  | __
+ | __ \ /  _ \| __ \ /  _ \|  | |  |/    \|  |/ /
+ | \_\ (  <_> ) \_\ (  <_> )  |_|  |   |  \    <
+ |___  /\____/|___  /\____/|____/__|___|  /__|_ \
+     \/           \/                    \/     \/
+```
 
 #### 项目介绍
-轻量级JS任务队列，支持并行数控制，任务超时，任务失败重试，错误抓取，任务运行情况统计等。
+轻量级JS任务调度工具，允许并行数控制，超时，重试，错误抓取，运行状态统计等，同时支持多种调度模式，包括立即调度、按频率调度等。
 
-[点击查看英文文档](https://github.com/blurooo/queue/blob/master/README.md)
+[点击查看英文文档](https://github.com/blurooo/bobolink/blob/master/README.md)
 
-#### 软件架构
-队列如何实现任务的及时消化？抓住两个重要时机：put任务和任务执行完成。假设队列的并行量被设置为n，初始化的时候正在执行中任务为m：
+#### 安装
 
-1. put任务的时候，顺带检测一下执行中的任务数距离并发量上限还有多少，一次性加载n-m个任务放入执行中队列。
-2. 每个执行完成的任务，处理完事务之后，顺带，尝试加载一个任务来补充执行。
-
-
-队列仅依赖于Promise，不管是使用原生ES6的Promise对象还是使用bluebird库，都可以正常运行。
-
+```
+npm i bobolink
+```
 
 #### 使用说明
 
-1. 创建默认队列
+1. 创建一个默认配置的Bobolink
 
-    按照需要创建一个队列对象（队列对象之间互不影响, 所以可以多种场景使用多个队列对象，甚至可以通过多个队列组合从而应对一些复杂场景）
+    按照需要创建一个Bobolink实例（Bobolink实例之间互不影响, 所以可以多种场景使用多个Bobolink，甚至可以通过多个Bobolink合从而应对一些复杂场景）
 
     ```javascript
-    let q = new Queue();
+    const Bobolink = require('bobolink');
+    let bl = new Bobolink();
     ```
+    每个Bobolink都有一个大的队列用于存放任务，所以可以很放心地将任务扔给它，适当的时机下Bobolink会很可靠地调度这些任务。
 2. put单个任务
 
-    由于Promise的执行代码在创建的时刻就已经被执行（then和catch内的代码则通过回调执行），所以简单把Promise扔进队列是不可行的
+    由于Promise的执行代码在创建的时刻就已经被执行（then和catch内的代码则通过回调执行），所以简单把Promise扔进Bobolink是不可行的
 
     ```javascript
     // 下面的打印序是 1 2 3
@@ -50,7 +56,7 @@
     }
     console.log(2);
     ```
-    此时p必须等待调用才会执行内部的Promise代码，且p返回的是该Promise，值便可以继续传递。 每个放置到QueueTask的Promise任务都应该以这种方式封装
+    此时p必须等待调用才会执行内部的Promise代码，且p返回的是该Promise，值便可以继续传递。 每个放置到Bobolink的Promise任务都应该以这种方式封装
     ```javascript
     function p() {
         return new Promise(resolve => {
@@ -64,7 +70,7 @@
     // 由于队列很空闲, 可以立即调度本任务,
     // 所以很快就成功打印出了1, 之后的then则需要等待合适的时机回调,
     // 如果Promise及其上面的所有then都执行完了, 最终会传递到put.then
-    q.put(p).then(task => {
+    bl.put(p).then(task => {
         // 打印最终值3
         console.log(task.res)
     });
@@ -73,7 +79,7 @@
 
 3. put一组任务
 
-    QueueTask允许同时put多个任务，且put.then会在该组任务都被执行完毕时才被调用
+    Bobolink允许同时put多个任务，且put.then会在该组任务都被执行完毕时才被调用
     ```javascript
     function getP(flag) {
         return function p() {
@@ -82,7 +88,7 @@
             });
         }
     }
-    q.put([getP(1), getP(2), getP(3)]).then(tasks => {
+    bl.put([getP(1), getP(2), getP(3)]).then(tasks => {
         // 打印每个任务的返回值, 按放入顺序一一对应
         for (let i = 0; i < tasks.length; i++) {
             console.log(tasks[i].res);
@@ -105,6 +111,16 @@
         retryPrior: false,
         // 是否优先处理新任务，为true则新任务会被放置到队列头
         newPrior: false,
+        // 指定任务的调度模式，仅在初始化时设置有效
+        scheduling: {
+          // 默认为'immediately'，任务将在队列空闲时立即得到调度。
+          // 你也可以将它设置为'frequency', 并且指定countPerSecond, Bobolink将严格地按照设定的频率去调度任务。
+          enable: 'frequency',
+          frequency: {
+            // 每秒需要调度的任务数，仅在任务队列有空闲时才会真正调度。
+            countPerSecond: 10000
+          }
+        },
         // 任务失败的handler函数，如果设置了重试，同个任务失败多次会执行catch多次
         catch: (err) => {
 
@@ -125,11 +141,11 @@
 
 5. 任务运行状态
 
-    使用QueueTask执行的Promise任务所有错误会被catch并包装，所以只存在put.then而不存在put.catch（除非put.then自身出错）。任务执行之后获取到的响应有一些有用的值可以用于服务统计
+    使用Bobolink执行的Promise任务所有错误会被catch并包装，所以只存在put.then而不存在put.catch（除非put.then自身出错）。任务执行之后获取到的响应有一些有用的值可以用于服务统计
     ```javascript
     taskRes = {
         // 执行是否遇到错误, 判断任务是否执行成功的判断依据是err === undefined, err为任何其它值都代表了运行失败。
-        // 任务出错时, 如果不重试, 那么catch到的错误会直接放入err, 超时时err为'queue_timeout'
+        // 任务出错时, 如果不重试, 那么catch到的错误会直接放入err, 超时时err为'bobolink_timeout'
         // 如果重试, 且在最大重试次数之后依然错误的话, 会将最后一次的错误放入err
         // 如果重试, 且在重试期间成功的话, 被认为是成功的, 所以err为空
         err: undefined,
@@ -153,15 +169,7 @@
         
 7. 更多
 
-    + q.options：获取当前队列的配置。
-    + q.queueTaskSize：获取队列排队中的任务数。
-    + q.runningTaskCount：获取队列执行中的任务数。
+    + bl.options：获取当前队列的配置。
+    + bl.queueTaskSize：获取队列排队中的任务数。
+    + bl.runningTaskCount：获取队列执行中的任务数。
 
-    另外，也提供了demo.js，可以评估运行状况是否符合预期。
-
-#### 参与贡献
-
-1. Fork 本项目
-2. 新建 Feat_xxx 分支
-3. 提交代码
-4. 新建 Pull Request
