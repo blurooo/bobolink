@@ -26,9 +26,9 @@ npm i bobolink
 
     ```javascript
     const Bobolink = require('bobolink');
-    let bl = new Bobolink();
+    // Each bobolink has a big task queue, so feel free to throw the task to it.
+    let q = new Bobolink();
     ```
-    Each bobolink has a big task queue, so feel free to throw the task to it.
 2. put a single task
 
     Since the code within the Promise function has been executed at the time of creation (the code in the and catch is executed by callback), it is not feasible to simply put a Promise into the bobolink.
@@ -86,7 +86,7 @@ npm i bobolink
             });
         }
     }
-    bl.put([getP(1), getP(2), getP(3)]).then(tasks => {
+    q.put([getP(1), getP(2), getP(3)]).then(tasks => {
         // Print the return value of each task
         for (let i = 0; i < tasks.length; i++) {
             console.log(tasks[i].res);
@@ -98,7 +98,7 @@ npm i bobolink
 
      you can set any of the following parameters：
      ```javascript
-     let bobo = new Bobolink({
+     let q = new Bobolink({
         // the minimum setting is 1
         concurrency: 5,
         // task timeout, ms，Set it to 0 and it doesn't timeout
@@ -127,7 +127,7 @@ npm i bobolink
      ```
      parameters allow you to reset them at run time:
      ```javascript
-     bl.setOptions({
+     q.setOptions({
         concurrency: 5,
         timeout: 15000,
         retry: 0,
@@ -156,12 +156,17 @@ npm i bobolink
 6. Cutting
 
     ```
-    put(tasks, prior)
+    Bobolink.ptototype.put(tasks, prior)
     ```
     put allows the prior to be specified as true to put into the queue header.
 
 7. More
 
-    + bl.options：get the configuration of the current queue.
-    + bl.queueTaskSize：get the number of tasks in the current queue.
-    + bl.runningTaskCount：get the number of tasks currently being processed.
+    + q.options：get the configuration of the current queue.
+    + q.queueTaskSize：get the number of tasks in the current queue.
+    + q.runningTaskCount：get the number of tasks currently being processed.
+    
+    
+#### LICENSE
+
+MIT
