@@ -7,6 +7,10 @@ ___.         ___.          .__  .__        __
      \/           \/                    \/     \/
 ```
 
+[![Build Status](https://travis-ci.org/blurooo/bobolink.png?branch=3.0)](https://travis-ci.org/blurooo/bobolink)
+[![Coverage Status](https://coveralls.io/github/blurooo/bobolink.png)](https://coveralls.io/github/blurooo/bobolink)
+
+
 #### Introduction
 Lightweight JS task scheduling framework, which supports concurrency control, timeout, retry, error catch, load analysis, etc. In addition, it also supports multiple scheduling modes, including immediate scheduling and frequency scheduling.
 

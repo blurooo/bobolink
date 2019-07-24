@@ -7,6 +7,9 @@ ___.         ___.          .__  .__        __
      \/           \/                    \/     \/
 ```
 
+[![Build Status](https://travis-ci.org/blurooo/bobolink.png?branch=3.0)](https://travis-ci.org/blurooo/bobolink)
+[![Coverage Status](https://coveralls.io/github/blurooo/bobolink.png)](https://coveralls.io/github/blurooo/bobolink)
+
 # 项目介绍
 
 轻量级JS任务调度工具，允许并行数控制，超时，重试，错误抓取，运行状态统计等，同时支持多种调度模式，包括立即调度、按频率调度等。
