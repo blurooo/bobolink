@@ -1,10 +1,11 @@
 {
   "name": "bobolink",
-  "version": "2.0.15",
+  "version": "3.0.0",
   "description": "an intelligently scheduled task pool",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "./node_modules/.bin/mocha",
+    "test:cov": "istanbul cover --preserve-comments ./node_modules/mocha/bin/_mocha test/**/*.js"
   },
   "repository": {
     "type": "git",
@@ -24,7 +25,7 @@
   ],
   "author": {
     "name": "blurooo",
-    "email": "me@chenmuxin.cn",
+    "email": "me@blurooo.com",
     "url": "https://github.com/blurooo/"
   },
   "license": "MIT",
@@ -33,6 +34,7 @@
   },
   "homepage": "https://github.com/blurooo/bobolink#readme",
   "devDependencies": {
+    "istanbul": "^0.4.5",
     "mocha": "^5.2.0"
   }
 }

@@ -7,22 +7,25 @@ ___.         ___.          .__  .__        __
      \/           \/                    \/     \/
 ```
 
-#### 项目介绍
+# 项目介绍
+
 轻量级JS任务调度工具，允许并行数控制，超时，重试，错误抓取，运行状态统计等，同时支持多种调度模式，包括立即调度、按频率调度等。
 
-[点击查看英文文档](https://github.com/blurooo/bobolink/blob/master/README.md)
+[Click here to view the Chinese document](https://github.com/blurooo/bobolink/blob/master/README.md)
 
-#### 安装
+## 安装
 
 ```
 npm i bobolink
 ```
 
-#### 使用说明
+## 使用说明
 
-1. 创建一个默认配置的Bobolink
+### 1. 创建一个默认配置的Bobolink
+
 
     按照需要创建一个Bobolink实例（Bobolink实例之间互不影响, 所以可以多种场景使用多个Bobolink，甚至可以通过多个Bobolink合从而应对一些复杂场景）
+
 
     ```javascript
     const Bobolink = require('bobolink');

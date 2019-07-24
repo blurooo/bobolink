@@ -10,7 +10,7 @@ ___.         ___.          .__  .__        __
 #### Introduction
 Lightweight JS task scheduling framework, which supports concurrency control, timeout, retry, error catch, load analysis, etc. In addition, it also supports multiple scheduling modes, including immediate scheduling and frequency scheduling.
 
-[Click here to view the Chinese document](https://github.com/blurooo/bobolink/blob/master/README-CN.md)
+[点击查看中文文档](https://github.com/blurooo/bobolink/blob/master/README-CN.md)
 
 #### Install
 
