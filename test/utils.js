@@ -1,4 +1,4 @@
-const assert = require('assert').strict;
+const assert = require('assert');
 const utils = require('../lib/utils');
 const constants = require('../lib/constants');
 
