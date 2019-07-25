@@ -73,6 +73,7 @@ describe('测试配置', () => {
         let option = new Option({
             concurrency: 20
         });
+        option.update();
         // 只更新一项，其余配置应该保持
         option.update({
             timeout: 50
