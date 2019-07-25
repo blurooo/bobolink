@@ -31,6 +31,14 @@ describe('工具方法测试', () => {
 
     it('生成唯一ID', () => {
         assert.notEqual(utils.genId(), utils.genId());
+        while (true) {
+            let curId = utils.genId(1);
+            if (curId.charAt(curId.length - 1) == '9') {
+                let nextId = utils.genId(1);
+                assert.equal(nextId.charAt(nextId.length - 1), '0');
+                break;
+            }
+        }
     });
 
 });

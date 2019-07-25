@@ -5,7 +5,7 @@ const constants = require('../lib/constants');
 describe('集成测试bobolink', () => {
 
     describe('函数 - 立即调度模式', () => {
-        let queue = new Bobolink({
+        let queue_t1 = new Bobolink({
             scheduleMode: constants.SCHEDULE_MODE_IMMEDIATELY,
             taskMode: constants.TASK_MODE_FUNCTION
         });
@@ -19,7 +19,7 @@ describe('集成测试bobolink', () => {
                 t5: false
             };
             // 一般成功
-            let t1 = queue.push(() => {
+            let t1 = queue_t1.push(() => {
                 return Promise.resolve(true);
             }).then(ts => {
                 assert.equal(ts.err, undefined);
@@ -30,7 +30,7 @@ describe('集成测试bobolink', () => {
                 hitMap.t1 = true;
             });
             // 一般失败
-            let t2 = queue.push(() => {
+            let t2 = queue_t1.push(() => {
                 return Promise.reject(false);
             }).then(ts => {
                 assert.equal(ts.err, false);
@@ -41,13 +41,13 @@ describe('集成测试bobolink', () => {
                 hitMap.t2 = true;
             });
             // 变更队列大小
-            queue.setOptions({
+            queue_t1.setOptions({
                 max: 2,
                 concurrency: 1
             });
-            assert.equal(queue.options.max, 2);
-            assert.equal(queue.runningTasksCount, 2);
-            let t3 = queue.push([() => {
+            assert.equal(queue_t1.options.max, 2);
+            assert.equal(queue_t1.runningTasksCount, 2);
+            let t3 = queue_t1.push([() => {
                 return new Promise(resolve => {
                     setTimeout(() => {
                         resolve(true);
@@ -70,20 +70,20 @@ describe('集成测试bobolink', () => {
                 assert.equal(ts.retry, 0);
                 hitMap.t3 = true;
             });
-            assert.equal(queue.runningTasksCount, 2);
+            assert.equal(queue_t1.runningTasksCount, 2);
             // 测试饱和策略 - 终止
-            let t4 = queue.push(() => {
+            let t4 = queue_t1.push(() => {
                 return Promise.resolve(true);
             }).catch(err => {
                 assert.equal(err, constants.EXCEEDED);
                 hitMap.t4 = true;
             });
             // 测试饱和策略 - 丢弃最早任务
-            queue.setOptions({
+            queue_t1.setOptions({
                 saturationPolicy: constants.SATURATION_POLICY_DISCARD_OLDEST,
                 max: 1
             });
-            let t5 = queue.push([() => {
+            let t5 = queue_t1.push([() => {
                 return Promise.resolve(true);
             }, () => {
                 return Promise.resolve(false);
@@ -103,6 +103,45 @@ describe('集成测试bobolink', () => {
             });
         });
 
+
+        it('任务模式自动推断', done => {
+            let queue_t2 = new Bobolink({
+                handler: data => {
+                    assert.equal(data, true);
+                    return !data;
+                }
+            });
+            let hitCount = 0;
+            // 先推断为数据模式
+            let t1 = queue_t2.put(true).then(ts => {
+                assert.equal(ts.res, false);
+                hitCount++;
+            });
+            assert.equal(queue_t2.options.taskMode, constants.TASK_MODE_DATA);
+            let t2 = queue_t2.put(() => {
+                return Promise.resolve(true);
+            }).catch(err => {
+                assert.equal(err, constants.TASK_ERROR);
+                hitCount++;
+            });
+            Promise.all([t1, t2]).then(() => {
+                assert.equal(hitCount, 2);
+                done();
+            });
+        });
+
+    });
+
+
+    describe('函数 - 按频率调度模式', () => {
+        let queue_t1 = new Bobolink({
+            scheduleMode: constants.SCHEDULE_MODE_FREQUENCY,
+            taskMode: constants.TASK_MODE_FUNCTION
+        });
+
+        it('基本调度', done => {
+            done();
+        });
     });
 
 });
