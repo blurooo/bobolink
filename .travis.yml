@@ -3,6 +3,4 @@ repo_token: VkLfS5DA85EiCF2d9MKFeiD8xxAfXahNd
 node_js:
   - "7.1.0"
   - "12.6.0"
-script: npm test
-after_script:
-  npm run cov:nyc
+script: npm run cov:nyc
