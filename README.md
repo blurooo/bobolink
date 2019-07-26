@@ -12,9 +12,9 @@ ___.         ___.          .__  .__        __
 
 # Introduction
 
-Lightweight JS task scheduling tool that allows for concurrency control, timeout, retry, error fetching, running status statistics, etc. It also supports multiple scheduling modes, including instant scheduling and frequency scheduling.
+Lightweight JS task scheduling tool that allows for concurrency control, timeout, retry, error fetching, running status statistics, etc. It also supports multiple scheduling modes, including immediately scheduling and frequency scheduling.
 
-[点击查看中文文档](https://github.com/blurooo/bobolink/blob/master/README.md)
+[点击查看中文文档](https://github.com/blurooo/bobolink/blob/master/README-ZH.md)
 
 # Application scenario
 
