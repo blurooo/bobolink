@@ -1,4 +1,8 @@
-module.exports = require('./lib/bobolink');
 
-// 挂载常量
-Object.assign(module.exports, require('./lib/constants'));
+const Bobolink = require('./lib/bobolink');
+
+/**
+ * @module
+ * @type { import("./lib/bobolink").bobolink }
+ */
+module.exports = Bobolink;

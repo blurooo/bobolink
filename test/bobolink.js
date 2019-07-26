@@ -274,7 +274,7 @@ describe('集成测试bobolink', () => {
             let queue = new Bobolink({
                 scheduleMode: constants.SCHEDULE_MODE_FREQUENCY,
                 taskMode: constants.TASK_MODE_FUNCTION,
-                countPerSecond: 2
+                countPerTimeScale: 2
             });
             let scheduleCount = 0;
             // 每500ms调度一个任务，1200的时候应该只够调度2个任务
@@ -305,10 +305,16 @@ describe('集成测试bobolink', () => {
                         resolve();
                     }, 5);
                 });
-            }]);
+            }]).then(ts => {
+                assert.equal(ts.res.length, 3);
+                // 第三个任务因为队列销毁而取消
+                assert.equal(ts.res[2].err, constants.DISCARD);
+            });
             t1.then(() => {
                 queue.destory();
-                done();
+                setTimeout(() => {
+                    done();
+                }, 0);
             });
         });
     });
@@ -363,7 +369,7 @@ describe('集成测试bobolink', () => {
                     });
                 },
                 scheduleMode: constants.SCHEDULE_MODE_FREQUENCY,
-                countPerSecond: 2
+                countPerTimeScale: 2
             });
             // 每500ms调度一个任务，1200的时候应该只够调度2个任务
             let t1 = new Promise(resolve => {
@@ -377,6 +383,53 @@ describe('集成测试bobolink', () => {
                 queue.destory();
                 done();
             });
+        });
+
+        it('不同时间刻度的调度', function(done) {
+            this.timeout(3000);
+            // 每2s执行一个任务
+            let queue = new Bobolink({
+                scheduleMode: constants.SCHEDULE_MODE_FREQUENCY,
+                countPerTimeScale: 1,
+                timeScale: 2
+            });
+            queue.push([1, 2]).then(ts => {
+                assert.equal(ts.res.length, 2);
+                // 第二个任务被取消
+                assert.equal(ts.res[1].err, constants.DISCARD);
+                assert.equal(ts.res[0].err, undefined);
+                assert.equal(ts.res[0].res, undefined);
+            });
+            setTimeout(() => {
+                // 销毁 队列
+                queue.destory();
+                setTimeout(done, 0);
+            }, 2000);
+        });
+
+        it('按频率每次调度所有任务', function(done) {
+            this.timeout(3000);
+            // 每2s执行所有任务
+            let queue = new Bobolink({
+                scheduleMode: constants.SCHEDULE_MODE_FREQUENCY,
+                countPerTimeScale: -1,
+                timeScale: 2,
+                handler: data => {
+                    return Promise.resolve(data * 2);
+                }
+            });
+            queue.push([1, 2]).then(ts => {
+                assert.equal(ts.res.length, 2);
+                assert.equal(ts.res[0].err, undefined);
+                assert.equal(ts.res[0].res, 2);
+                assert.equal(ts.res[1].err, undefined);
+                assert.equal(ts.res[1].res, 4);
+            });
+            setTimeout(() => {
+                // 销毁 队列
+                queue.destory();
+                setTimeout(done, 0);
+            }, 2000);
         });
 
     });

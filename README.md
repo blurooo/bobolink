@@ -10,178 +10,278 @@ ___.         ___.          .__  .__        __
 [![Build Status](https://travis-ci.org/blurooo/bobolink.png?branch=3.0)](https://travis-ci.org/blurooo/bobolink)
 [![Coverage Status](https://coveralls.io/repos/github/blurooo/bobolink/badge.svg?branch=3.0)](https://coveralls.io/github/blurooo/bobolink?branch=3.0)
 
-# 项目介绍
+# Introduction
 
-轻量级JS任务调度工具，允许并行数控制，超时，重试，错误抓取，运行状态统计等，同时支持多种调度模式，包括立即调度、按频率调度等。
+Lightweight JS task scheduling tool that allows for concurrency control, timeout, retry, error fetching, running status statistics, etc. It also supports multiple scheduling modes, including instant scheduling and frequency scheduling.
 
-[Click here to view the Chinese document](https://github.com/blurooo/bobolink/blob/master/README.md)
+[点击查看中文文档](https://github.com/blurooo/bobolink/blob/master/README.md)
 
-## 安装
+# Application scenario
+
+1. You want to control the number of concurrent tasks, such as large-scale interface requests, control the frequency will reduce the impact on the interface provider, but also reduce the load on the system, the CPU performance is smoother.
+
+2. Hope that the task can be retried when it fails. Compared to self-implementation, bobolink can provide a more diverse and easy-to-use retry strategy.
+
+3. I hope that the task can provide the ability to cancel the timeout, and also provide the execution indicators of each task, including the waiting time in the queue, the running time, the execution status, and so on.
+
+4. I want to control the total number of asynchronous tasks. After reaching a threshold, bobolink will reject or discard the old tasks, so that the task will not be uncontrollable.
+
+Summary: Bobolink can be understood as a thread pool, all asynchronous tasks can be scheduled through bobolink, with bobolink, asynchronous tasks are no longer barbaric, but completely controllable.
+
+# Install
 
 ```
 npm i bobolink
 ```
 
-## 使用说明
+# Quick Start
 
-### 1. 创建一个默认配置的Bobolink
+## Basic Usage
 
+```
+const Bobolink = require('bobolink');
 
-    按照需要创建一个Bobolink实例（Bobolink实例之间互不影响, 所以可以多种场景使用多个Bobolink，甚至可以通过多个Bobolink合从而应对一些复杂场景）
+// create a new queue instance
+const queue = new Bobolink();
 
+// submit a functional task
+queue.put(() => {
+    // The task must return a Promise
+    return Promise.resolve(true);
+}).then(ts => {
+    console.log('task execution completed');
+    // undefined
+    console.log('whether succeed: ' + ts.err === undefined);
+    // true
+    console.log('return value: ' + ts.res);
+    console.log('waiting time: ' + ts.waitingTime);
+    console.log('run time: ' + ts.runTime);
+    // 0
+    console.log('number of retries: ' + ts.retry);
+});
 
-    ```javascript
-    const Bobolink = require('bobolink');
-    // 每个Bobolink实例都有一个大的队列用于存放任务，所以可以很放心地将任务扔给它，适当的时机下Bobolink会很可靠地调度这些任务。
-    let q = new Bobolink();
-    ```
-2. put单个任务
+// submit a task that failed to execute
+queue.put(() => {
+    return Promise.reject('error');
+}).then(ts => {
+    console.log('task execution completed');
+    // error
+    console.log('error: ' + ts.err);
+});
+```
 
-    由于Promise的执行代码在创建的时刻就已经被执行（then和catch内的代码则通过回调执行），所以简单把Promise扔进Bobolink是不可行的
+When initializing an instance, you are allowed to configure the properties of the queue:
 
-    ```javascript
-    // 下面的打印序是 1 2 3
-    new Promise(resolve => {
-        console.log(1);
-        resolve(3)
-    }).then(res => {
-        console.log(res);
-    })
-    console.log(2)
-    ```
-    通过将Promise扔进一个function可以达到延期执行的效果
-    ```javascript
-    function p() {
-        // 返回promise任务
+```
+// set the number of concurrency to 1 to get a serial queue
+const queue = new Bobolink({
+    concurrency: 1
+});
+```
+If the task is detected to have a problem, an exception will be thrown immediately:
+```
+// submit a task group with no elements
+// or submit a task group with existing elements, but none of the elements meet the current task model
+queue.put([]).catch(err => {
+    assert.equal(err, Bobolink.EMPTY_ELEMENTS);
+});
+```
+
+## Scheduled by frequency
+
+```
+const Bobolink = require('bobolink');
+const assert = require('assert');
+
+// create a new queue instance to enable the frequency scheduling mode
+const queue = new Bobolink({
+    // constants are directly mounted under Bobolink
+    scheduleMode: Bobolink.SCHEDULE_MODE_FREQUENCY,
+    // set two tasks per second, bobolink calculates a task every 500ms
+    countPerSecond: 2
+});
+
+// calculate the number of task schedules by this variable
+let scheduleCount = 0;
+
+// one task is scheduled every 500ms, and only two tasks should be scheduled after 1200ms.
+let t1 = new Promise(resolve => {
+    setTimeout(() => {
+        assert.equal(scheduleCount, 2);
+        resolve();
+    }, 1200);
+});
+
+// generate task function
+function task() {
+    return () => {
         return new Promise(resolve => {
-            console.log(1);
-            resolve(3)
-        }).then(res => {
-            console.log(res);
-        })
+            setTimeout(() => {
+                scheduleCount++;
+                resolve();
+            }, 5);
+        });
     }
-    console.log(2);
-    ```
-    此时p必须等待调用才会执行内部的Promise代码，且p返回的是该Promise，值便可以继续传递。 每个放置到Bobolink的Promise任务都应该以这种方式封装
-    ```javascript
-    function p() {
+}
+
+// put three tasks into the queue
+queue.push([task(), task()， task()]).then(ts => {
+    console.log('The total time spent on this group of tasks:' + ts.runTime);
+    // the return value of this group of tasks, res is an array, each element contains the execution status of the corresponding task
+    assert.equal(ts.res.length, 3);
+    // the first two tasks are executed normally, but the third task is cancelled because the queue is destroyed.
+    assert.equal(ts.res[2].err, Bobolink.DISCARD);
+});
+
+t1.then(() => {
+    // after the execution is completed, the resources occupied by the queue can be destroyed if necessary.
+    queue.destory();
+});
+```
+
+## Data mode
+
+```
+const Bobolink = require('bobolink');
+const assert = require('assert');
+
+// create a new queue instance, providing a handler function
+const queue = new Bobolink({
+    handler: data => {
+        assert.equal(data, true);
+        return !data;
+    }
+});
+
+// putting a non-functional task for the first time will automatically be inferred as a data mode
+queue.push(true).then(ts => {
+    assert.equal(ts.res, false);
+});
+```
+
+## Combination mode
+
+```
+const Bobolink = require('bobolink');
+const assert = require('assert');
+
+// I want to perform a set of cleanups every minute, each group will carry a number of IDs that need to be cleaned up.
+// each ID cleanup takes 1 minute (mainly IO time), and at most 2 IDs are cleaned at the same time.
+let clearMap = {
+    group1: [1, 2, 3],
+    group2: [5, 6, 7, 8]
+}
+
+// ID cleanup queue
+let clearQueue = new Bobolink({
+    // clean up 2 IDs at the same time
+    concurrency: 2,
+    // cleanup handler
+    handler: id => {
         return new Promise(resolve => {
-            console.log(1);
-            resolve(2)
-        }).then(res => {
-            console.log(res);
-            return 3;
-        })
+            setTimeout(resolve, 1000 * 60);
+        });
     }
-    // 由于队列很空闲, 可以立即调度本任务,
-    // 所以很快就成功打印出了1, 之后的then则需要等待合适的时机回调,
-    // 如果Promise及其上面的所有then都执行完了, 最终会传递到put.then
-    q.put(p).then(task => {
-        // 打印最终值3
-        console.log(task.res)
-    });
-    ```
-    当然，如果在put的时候，队列执行中的任务数已经到达最大并行量，则需要等待有任务执行完成时腾出空间，并且排在当前任务之前的任务已经都被调度完了才会得到执行。
+});
 
-3. put一组任务
-
-    Bobolink允许同时put多个任务，且put.then会在该组任务都被执行完毕时才被调用
-    ```javascript
-    function getP(flag) {
-        return function p() {
-            return new Promise(resolve => {
-                resolve(flag)
-            });
-        }
+// process one group per minute
+let intervalQueue = new Bobolink({
+    timeScale: 60,
+    countPerTimeScale: 1,
+    handler: groupId => {
+        // submit the list of IDs under this group to the cleanup queue
+        return clearQueue.put(clearMap[groupId]);
     }
-    q.put([getP(1), getP(2), getP(3)]).then(tasks => {
-        // 打印每个任务的返回值, 按放入顺序一一对应
-        for (let i = 0; i < tasks.length; i++) {
-            console.log(tasks[i].res);
-        }
-    })
-    ```
+});
 
-4. 配置
+intervalQueue(['group1', 'group2']).then(ts => {
+    console.log('all tasks are completed and the total time is spent:' + ts.runTime);
+});
+```
 
-     目前支持的参数如下：
-     ```javascript
-     let q = new Bobolink({
-        // 最大并行数，最小为1
-        concurrency: 5,
-        // 任务超时时间ms，0不超时
-        timeout: 15000,
-        // 任务失败重试次数，0不重试
-        retry: 0,
-        // 是否优先处理失败重试的任务，为true则失败的任务会被放置到队列头
-        retryPrior: false,
-        // 是否优先处理新任务，为true则新任务会被放置到队列头
-        newPrior: false,
-        // 最大可排队的任务数, -1为无限制, 超过最大限制时添加任务将返回错误'bobolink_exceeded_maximum_task_number'
-        max: -1,
-        // 指定任务的调度模式，仅在初始化时设置有效
-        scheduling: {
-          // 默认为'immediately'，任务将在队列空闲时立即得到调度。
-          // 你也可以将它设置为'frequency', 并且指定countPerSecond, Bobolink将严格地按照设定的频率去调度任务。
-          enable: 'frequency',
-          frequency: {
-            // 每秒需要调度的任务数，仅在任务队列有空闲时才会真正调度。
-            countPerSecond: 10000
-          }
-        },
-        // 任务失败的handler函数，如果设置了重试，同个任务失败多次会执行catch多次
-        catch: (err) => {
+## Supported configuration items
 
-        }
-     });
-     ```
-     参数可以在运行期更改, 对后续生效
-     ```javascript
-     q.setOptions({
-        concurrency: 5,
-        timeout: 15000,
-        retry: 0,
-        retryPrior: false,
-        newPrior: false,
-        catch: null
-     });
-     ```
+ Configuration | Description | Value 
+ ---- | ---- | ---- 
+ concurrency | Concurrent number | Greater than 0, the default is 5 
+| timeout | Task timeout (ms) | Greater than or equal to 0, set to 0 does not time out, the default is 15000 |
+| retry | Number of failed retries | Greater than or equal to 0, set to 0 will not retry, the default is 0 |
+| retryPrior | Whether to perform the retry task first | Default is false |
+| newPrior | Whether to prioritize new tasks | The default is false, does not support modification |
+| catch | Crawl the task's exception, retry multiple times and call multiple catches | Need to provide a function, the default is null |
+| max | The maximum number of tasks that can be submitted to the queue and are awaiting execution | -1 is no upper limit, the default is 65536 |
+| scheduleMode | Scheduling mode, support for frequency scheduling and immediately scheduling | Bobolink.SCHEDULE_MODE_FREQUENCY and Bobolink.SCHEDULE_MODE_IMMEDIATELY (default), oes not support modification |
+| countPerTimeScale | Number of tasks scheduled per time scale when scheduled by frequency | Greater than 0, default is 100, set to -1 to schedule all tasks at a time, does not support modification |
+| timeScale | Time scale (s) | Greater than or equal to 1, default is 1s
+| taskMode | Task mode, ie put, the type of task belongs to function or data | Bobolink.TASK_MODE_DATA and Bobolink.TASK_MODE_FUNCTION, If it is not set, it will be automatically inferred and does not support modification. |
+| handler | When the task is in data mode, you need to provide the handler function. | A function that returns a Promise |
+| saturationPolicy | Policy for submitting tasks when the queue is saturated | Bobolink.SATURATION_POLICY_ABORT (abort, default) and Bobolink.SATURATION_POLICY_DISCARD_OLDEST (discard the oldest task) |
 
-5. 任务运行状态
+## Task execution status
 
-    使用Bobolink执行的Promise任务所有错误会被catch并包装，所以只存在put.then而不存在put.catch（除非put.then自身出错）。任务执行之后获取到的响应有一些有用的值可以用于服务统计
-    ```javascript
-    taskRes = {
-        // 执行是否遇到错误, 判断任务是否执行成功的判断依据是err === undefined, err为任何其它值都代表了运行失败。
-        // 任务出错时, 如果不重试, 那么catch到的错误会直接放入err, 超时时err为'bobolink_timeout'
-        // 如果重试, 且在最大重试次数之后依然错误的话, 会将最后一次的错误放入err
-        // 如果重试, 且在重试期间成功的话, 被认为是成功的, 所以err为空
-        err: undefined,
-        // 执行Promise返回的结果
-        res: Object,
-        // 从任务放入队列到该任务最后一次被调度, 所经过的时间(ms)
-        waittingTime: 20,
-        // 该任务最后一次运行的时间(ms)
-        runTime: 1,
-        // 该任务出错重试的次数
-        retry: 2
-    }
-    ```
-6. 插队
+Field | Description
+---|---
+err | Exception information of the task, when the task is executed successfully, err is equal to undefined
+res | The return value of the task. When a single task is submitted, res is the return value of the task. When a group of tasks is submitted, res is an array, and each element corresponds to the execution status of each task.
+runTime | Task execution time, when a group of tasks is submitted, the execution time of the entire group of tasks
+waitingTime | The waiting time of the task in the queue
+retry | Number of task retries
 
-    除了队列控制参数newPrior和retryPrior之外，也允许在put的时候指定当前任务是否优先处理
-    ```
-    Bobolink.ptototype.put(tasks, prior)
-    ```
-    默认情况下，任务是放入队尾的，但如果指定了prior为true，则会被放置到队头，put任务组时会维持组任务原本的顺序，并整个放入队头。
-        
-7. 更多
+## API brief
 
-    + q.options：获取当前队列的配置。
-    + q.queueTaskSize：获取队列排队中的任务数。
-    + q.runningTaskCount：获取队列执行中的任务数。
+> Bobolink
 
-    
-#### LICENSE
+Bobolink is the class used to generate the execution queue and needs to borrow the new keyword.
+
+grammar:
+
+```
+new Bobolink(options)
+```
+
+`[option]`
+
+For configuration items, refer to Supported Configuration Items for detailed configuration.
+
+Bobolink mounts some string constants, such as the identifier of the task cancellation: Bobolink.DISCARD, which is preferred.
+
+> Bobolink.prototype.put(tasks, prior)
+
+Alias function: Bobolink.prototype.push(tasks, prior)。
+
+Submit the task to the queue instance for scheduling.
+
+`[tasks]`
+
+The submitted tasks can be single or a group. The task type can be either data or a function.
+
+`[prior]`
+
+Whether the task submitted this time is prioritized.
+
+Returning to Promise, when the task itself is detected to be abnormal or not accepted (not entering the execution flow), an error is thrown and a catch is required. Once the submission is successful, the execution status of the task can be obtained in the then process regardless of whether the task is executed successfully.
+
+> Bobolink.prototype.setOption(options)
+
+Update the configuration of the queue instance. Except for the configuration items that do not support the change during the runtime, other configuration items can be updated at will, and take effect immediately.
+
+> Bobolink.prototype.runningTasksCount
+
+Get the number of tasks in action.
+
+> Bobolink.prototype.queueTaskSize
+
+Gets the number of tasks waiting in the queue.
+
+> Bobolink.prototype.options
+
+Get the configuration of the current instance.
+
+> Bobolink.prototype.destory()
+
+Clean up the current queue instance. This includes removing the timing scheduler (if it exists) and cleaning up the remaining unexecuted tasks (all return cancellations).
+
+
+# LICENSE
 
 MIT

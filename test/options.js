@@ -14,7 +14,8 @@ describe('测试配置', () => {
         assert.equal(option.catch, null);
         assert.equal(option.max, 2 << 15);
         assert.equal(option.scheduleMode, constants.SCHEDULE_MODE_IMMEDIATELY);
-        assert.equal(option.countPerSecond, 100);
+        assert.equal(option.countPerTimeScale, 100);
+        assert.equal(option.timeScale, 1);
         assert.equal(option.saturationPolicy, constants.SATURATION_POLICY_ABORT);
     });
 
@@ -29,7 +30,8 @@ describe('测试配置', () => {
             catch: catchFunc,
             max: 2 << 4,
             scheduleMode: constants.SCHEDULE_MODE_FREQUENCY,
-            countPerSecond: 500,
+            countPerTimeScale: 500,
+            timeScale: 2,
             saturationPolicy: constants.SATURATION_POLICY_DISCARD_OLDEST
         });
         assert.equal(option.concurrency, 10);
@@ -40,7 +42,8 @@ describe('测试配置', () => {
         assert.equal(option.catch, catchFunc);
         assert.equal(option.max, 2 << 4);
         assert.equal(option.scheduleMode, constants.SCHEDULE_MODE_FREQUENCY);
-        assert.equal(option.countPerSecond, 500);
+        assert.equal(option.countPerTimeScale, 500);
+        assert.equal(option.timeScale, 2);
         assert.equal(option.saturationPolicy, constants.SATURATION_POLICY_DISCARD_OLDEST);
     });
 
@@ -54,7 +57,8 @@ describe('测试配置', () => {
             catch: 'any',
             max: 'any',
             scheduleMode: 'any',
-            countPerSecond: 'any',
+            countPerTimeScale: 'any',
+            timeScale: 'any',
             saturationPolicy: 'any'
         });
         assert.equal(option.concurrency, 5);
@@ -65,7 +69,8 @@ describe('测试配置', () => {
         assert.equal(option.catch, null);
         assert.equal(option.max, 2 << 15);
         assert.equal(option.scheduleMode, constants.SCHEDULE_MODE_IMMEDIATELY);
-        assert.equal(option.countPerSecond, 100);
+        assert.equal(option.countPerTimeScale, 100);
+        assert.equal(option.timeScale, 1);
         assert.equal(option.saturationPolicy, constants.SATURATION_POLICY_ABORT);
     });
 
@@ -86,7 +91,8 @@ describe('测试配置', () => {
         assert.equal(option.catch, null);
         assert.equal(option.max, 2 << 15);
         assert.equal(option.scheduleMode, constants.SCHEDULE_MODE_IMMEDIATELY);
-        assert.equal(option.countPerSecond, 100);
+        assert.equal(option.countPerTimeScale, 100);
+        assert.equal(option.timeScale, 1);
         assert.equal(option.saturationPolicy, constants.SATURATION_POLICY_ABORT);
         // 测试全部配置更新时是否正确反应
         let catchFunc = () => {};
@@ -99,7 +105,8 @@ describe('测试配置', () => {
             catch: catchFunc,
             max: 2 << 4,
             scheduleMode: constants.SCHEDULE_MODE_FREQUENCY,
-            countPerSecond: 500,
+            countPerTimeScale: -1,
+            timeScale: 2,
             saturationPolicy: constants.SATURATION_POLICY_DISCARD_OLDEST
         });
         assert.equal(option.concurrency, 10);
@@ -111,7 +118,8 @@ describe('测试配置', () => {
         assert.equal(option.max, 2 << 4);
         // 不可变更的配置
         assert.equal(option.scheduleMode, constants.SCHEDULE_MODE_IMMEDIATELY);
-        assert.equal(option.countPerSecond, 500);
+        assert.equal(option.countPerTimeScale, -1);
+        assert.equal(option.timeScale, 2);
         assert.equal(option.saturationPolicy, constants.SATURATION_POLICY_DISCARD_OLDEST);
     });
 
