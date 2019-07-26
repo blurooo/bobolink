@@ -14,7 +14,7 @@ ___.         ___.          .__  .__        __
 
 轻量级JS任务调度工具，允许并发控制、超时、重试、错误抓取、运行状态统计等，同时也支持多种调度模式，包括即时调度、按频率调度等。
 
-[Click here to view the Chinese document](https://github.com/blurooo/bobolink/blob/master/README.md)
+[Click here to view the English document](https://github.com/blurooo/bobolink/blob/master/README.md)
 
 # 运用场景
 
