@@ -24,7 +24,7 @@ ___.         ___.          .__  .__        __
 
 3. 希望任务可以提供超时取消的能力，也可以提供每个任务的执行指标，包括在队列中的等待时长，运行时长，执行状态等。
 
-4. 希望可以控制异步任务的总量，在达到一个阈值之后，bobolink会采取拒绝或丢弃旧任务等方式使得任务不会出现不可控的堆积现象。
+4. 希望可以控制异步任务的总量，在达到一个阈值之后，bobolink会采取拒绝或丢弃旧任务等方式避免任务出现不可控的堆积现象。
 
 总结：可以将bobolink理解为一个线程池，所有异步任务都可以通过bobolink来调度，有了bobolink之后，异步任务不再是野蛮堆积的，而是完全可控的。
 
@@ -184,7 +184,7 @@ let clearQueue = new Bobolink({
     }
 });
 
-// 每分钟处理一个组
+// 每分钟处理一个组的队列
 let intervalQueue = new Bobolink({
     timeScale: 60,
     countPerTimeScale: 1,
@@ -194,7 +194,7 @@ let intervalQueue = new Bobolink({
     }
 });
 
-intervalQueue(['group1', 'group2']).then(ts => {
+intervalQueue.push(['group1', 'group2']).then(ts => {
     console.log('所有任务执行完成，总耗时：' + ts.runTime);
 });
 ```
@@ -239,7 +239,7 @@ Bobolink是用于生成执行队列的类，需要借用new关键字。
 new Bobolink(options)
 ```
 
-`[option]`
+`[options]`
 
 配置项，详细配置参照“支持的配置项”。
 

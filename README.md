@@ -194,7 +194,7 @@ let intervalQueue = new Bobolink({
     }
 });
 
-intervalQueue(['group1', 'group2']).then(ts => {
+intervalQueue.push(['group1', 'group2']).then(ts => {
     console.log('all tasks are completed and the total time is spent:' + ts.runTime);
 });
 ```
@@ -239,7 +239,7 @@ grammar:
 new Bobolink(options)
 ```
 
-`[option]`
+`[options]`
 
 For configuration items, refer to Supported Configuration Items for detailed configuration.
 
