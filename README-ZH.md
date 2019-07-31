@@ -97,7 +97,7 @@ const queue = new Bobolink({
     // 常量直接挂载在Bobolink下，设定会按频率调度
     scheduleMode: Bobolink.SCHEDULE_MODE_FREQUENCY,
     // 设定每秒执行两个任务，bobolink会计算出每500ms执行一个任务
-    countPerSecond: 2
+    countPerTimeScale: 2
 });
 
 // 通过此变量计算任务调度的个数

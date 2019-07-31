@@ -98,7 +98,7 @@ const queue = new Bobolink({
     // constants are directly mounted under Bobolink
     scheduleMode: Bobolink.SCHEDULE_MODE_FREQUENCY,
     // set two tasks per second, bobolink calculates a task every 500ms
-    countPerSecond: 2
+    countPerTimeScale: 2
 });
 
 // calculate the number of task schedules by this variable
