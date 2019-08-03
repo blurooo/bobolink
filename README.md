@@ -7,6 +7,7 @@ ___.         ___.          .__  .__        __
      \/           \/                    \/     \/
 ```
 
+[![Gitter](https://badges.gitter.im/blurooo/bobolink.svg)](https://gitter.im/blurooo/bobolink?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![Build Status](https://travis-ci.org/blurooo/bobolink.png?branch=3.0)](https://travis-ci.org/blurooo/bobolink)
 [![Coverage Status](https://coveralls.io/repos/github/blurooo/bobolink/badge.svg?branch=3.0)](https://coveralls.io/github/blurooo/bobolink?branch=3.0)
 
